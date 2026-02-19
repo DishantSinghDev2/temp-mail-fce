@@ -1,46 +1,21 @@
-import { MailboxResponse, SingleMessageResponse, DeleteResponse, HealthResponse } from './types';
+import { MailboxResponse, SingleMessageResponse, DeleteResponse, HealthResponse, DomainsResponse } from './types';
 import { decryptMailbox } from './utils';
 export * from './types';
 export { decryptMailbox };
-/**
- * Official Client for FreeCustom.Email (Temp Mail FCE).
- *
- * IMPORTANT:
- * This API provides text/html content.
- * To view attachments, OTPs, or missing fields, please visit:
- * https://www.freecustom.email and use the same mailbox name.
- */
 export declare class TempMailFCE {
     private client;
-    /**
-     * @param apiKey Your RapidAPI Key for temp-mail-maildrop1
-     */
     constructor(apiKey: string);
     /**
-     * Retrieve all messages in the mailbox.
-     *
-     * @param mailboxName The username/alias of the mailbox (e.g., "john")
+     * Get all available domains
      */
-    getMailbox(mailboxName: string): Promise<MailboxResponse>;
+    getDomains(): Promise<DomainsResponse>;
     /**
-     * Retrieve a specific email message.
-     *
-     * NOTE: If attachments or OTPs appear missing, visit https://www.freecustom.email
-     *
-     * @param mailboxName The username/alias
-     * @param messageId The unique message ID (from getMailbox)
+     * Retrieve mailbox messages
+     * mailbox: user@domain.com
      */
-    getMessage(mailboxName: string, messageId: string): Promise<SingleMessageResponse>;
-    /**
-     * Deletes a specific email message.
-     *
-     * @param mailboxName The username/alias
-     * @param messageId The unique message ID
-     */
-    deleteMessage(mailboxName: string, messageId: string): Promise<DeleteResponse>;
-    /**
-     * Fetches server health statistics (queued and denied requests).
-     */
+    getMailbox(mailbox: string): Promise<MailboxResponse>;
+    getMessage(mailbox: string, messageId: string): Promise<SingleMessageResponse>;
+    deleteMessage(mailbox: string, messageId: string): Promise<DeleteResponse>;
     getHealth(): Promise<HealthResponse>;
     private handleError;
 }

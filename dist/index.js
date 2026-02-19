@@ -21,28 +21,32 @@ exports.TempMailFCE = exports.decryptMailbox = void 0;
 const axios_1 = __importDefault(require("axios"));
 const utils_1 = require("./utils");
 Object.defineProperty(exports, "decryptMailbox", { enumerable: true, get: function () { return utils_1.decryptMailbox; } });
-// Re-export types and utils for the user
+const errors_1 = require("./errors");
 __exportStar(require("./types"), exports);
 const BASE_URL = 'https://temp-mail-maildrop1.p.rapidapi.com';
 const RAPID_HOST = 'temp-mail-maildrop1.p.rapidapi.com';
-/**
- * Official Client for FreeCustom.Email (Temp Mail FCE).
- *
- * IMPORTANT:
- * This API provides text/html content.
- * To view attachments, OTPs, or missing fields, please visit:
- * https://www.freecustom.email and use the same mailbox name.
- */
+// small guard… because users will pass "john" otherwise :)
+function parseMailbox(full) {
+    if (!full || typeof full !== 'string') {
+        throw new errors_1.TempMailError('Mailbox is required', 'INVALID_MAILBOX');
+    }
+    const parts = full.split('@');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        throw new errors_1.TempMailError('Mailbox must be in format: user@domain.com', 'INVALID_MAILBOX');
+    }
+    return {
+        user: parts[0].toLowerCase(),
+        domain: parts[1].toLowerCase(),
+    };
+}
 class TempMailFCE {
-    /**
-     * @param apiKey Your RapidAPI Key for temp-mail-maildrop1
-     */
     constructor(apiKey) {
-        if (!apiKey) {
-            throw new Error("RapidAPI Key is required to initialize TempMailFCE");
+        if (!apiKey || apiKey.length < 10) {
+            throw new errors_1.TempMailError('Valid RapidAPI key is required', 'INVALID_API_KEY');
         }
         this.client = axios_1.default.create({
             baseURL: BASE_URL,
+            timeout: 15000, // don't hang forever
             headers: {
                 'Content-Type': 'application/json',
                 'x-rapidapi-host': RAPID_HOST,
@@ -51,77 +55,76 @@ class TempMailFCE {
         });
     }
     /**
-     * Retrieve all messages in the mailbox.
-     *
-     * @param mailboxName The username/alias of the mailbox (e.g., "john")
+     * Get all available domains
      */
-    async getMailbox(mailboxName) {
+    async getDomains() {
         try {
-            const response = await this.client.get(`/mailbox/${mailboxName}`);
-            return response.data;
+            const res = await this.client.get('/domains');
+            return res.data;
         }
-        catch (error) {
-            throw this.handleError(error);
+        catch (e) {
+            throw this.handleError(e);
         }
     }
     /**
-     * Retrieve a specific email message.
-     *
-     * NOTE: If attachments or OTPs appear missing, visit https://www.freecustom.email
-     *
-     * @param mailboxName The username/alias
-     * @param messageId The unique message ID (from getMailbox)
+     * Retrieve mailbox messages
+     * mailbox: user@domain.com
      */
-    async getMessage(mailboxName, messageId) {
+    async getMailbox(mailbox) {
         try {
-            const response = await this.client.get(`/mailbox/${mailboxName}/message/${messageId}`);
-            return response.data;
+            const { user } = parseMailbox(mailbox);
+            const res = await this.client.get(`/mailbox/${user}`);
+            return res.data;
         }
-        catch (error) {
-            throw this.handleError(error);
+        catch (e) {
+            throw this.handleError(e);
         }
     }
-    /**
-     * Deletes a specific email message.
-     *
-     * @param mailboxName The username/alias
-     * @param messageId The unique message ID
-     */
-    async deleteMessage(mailboxName, messageId) {
+    async getMessage(mailbox, messageId) {
         try {
-            const response = await this.client.delete(`/mailbox/${mailboxName}/message/${messageId}`);
-            return response.data;
+            const { user } = parseMailbox(mailbox);
+            const res = await this.client.get(`/mailbox/${user}/message/${messageId}`);
+            return res.data;
         }
-        catch (error) {
-            throw this.handleError(error);
+        catch (e) {
+            throw this.handleError(e);
         }
     }
-    /**
-     * Fetches server health statistics (queued and denied requests).
-     */
+    async deleteMessage(mailbox, messageId) {
+        try {
+            const { user } = parseMailbox(mailbox);
+            const res = await this.client.delete(`/mailbox/${user}/message/${messageId}`);
+            return res.data;
+        }
+        catch (e) {
+            throw this.handleError(e);
+        }
+    }
     async getHealth() {
         try {
-            const response = await this.client.get('/health');
-            return response.data;
+            const res = await this.client.get('/health');
+            return res.data;
         }
-        catch (error) {
-            throw this.handleError(error);
+        catch (e) {
+            throw this.handleError(e);
         }
     }
     handleError(error) {
         var _a;
+        // Server responded
         if (error.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            const msg = ((_a = error.response.data) === null || _a === void 0 ? void 0 : _a.message) || error.response.statusText;
-            return new Error(`API Error (${error.response.status}): ${msg}`);
+            const status = error.response.status;
+            const msg = ((_a = error.response.data) === null || _a === void 0 ? void 0 : _a.message) ||
+                error.response.statusText ||
+                'API request failed';
+            return new errors_1.TempMailError(`TempMail API Error: ${msg}`, 'API_ERROR', status, error.response.data);
         }
-        else if (error.request) {
-            return new Error("No response received from Temp Mail API");
+        // No response (network, timeout, DNS, etc.)
+        if (error.request) {
+            return new errors_1.TempMailError('No response from TempMail API (network/timeout)', 'NO_RESPONSE');
         }
-        else {
-            return new Error(`Request Error: ${error.message}`);
-        }
+        // Something else exploded
+        return new errors_1.TempMailError(error.message || 'Unexpected error', 'UNKNOWN_ERROR');
     }
 }
 exports.TempMailFCE = TempMailFCE;

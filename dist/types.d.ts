@@ -45,3 +45,6 @@ export interface HealthResponse {
     message: string;
     data: HealthStats;
 }
+export interface DomainsResponse {
+    domains: string[];
+}
