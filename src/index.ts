@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+// index.ts
 import { 
   MailboxResponse,
   SingleMessageResponse,
@@ -15,14 +15,9 @@ export { decryptMailbox };
 const BASE_URL = 'https://temp-mail-maildrop1.p.rapidapi.com';
 const RAPID_HOST = 'temp-mail-maildrop1.p.rapidapi.com';
 
-// small guard… because users will pass "john" otherwise :)
-
 function parseMailbox(full: string) {
   if (!full || typeof full !== 'string') {
-    throw new TempMailError(
-      'Mailbox is required',
-      'INVALID_MAILBOX'
-    );
+    throw new TempMailError('Mailbox is required', 'INVALID_MAILBOX');
   }
 
   const parts = full.split('@');
@@ -41,119 +36,97 @@ function parseMailbox(full: string) {
 }
 
 export class TempMailFCE {
-  private client: AxiosInstance;
+  private apiKey: string;
+  private timeout: number;
 
-  constructor(apiKey: string) {
-  if (!apiKey || apiKey.length < 10) {
-    throw new TempMailError(
-      'Valid RapidAPI key is required',
-      'INVALID_API_KEY'
-    );
+  constructor(apiKey: string, timeout = 15000) {
+    if (!apiKey || apiKey.length < 10) {
+      throw new TempMailError('Valid RapidAPI key is required', 'INVALID_API_KEY');
+    }
+    this.apiKey = apiKey;
+    this.timeout = timeout;
   }
 
-  this.client = axios.create({
-    baseURL: BASE_URL,
-    timeout: 15000, // don't hang forever
-    headers: {
-      'Content-Type': 'application/json',
-      'x-rapidapi-host': RAPID_HOST,
-      'x-rapidapi-key': apiKey,
-    },
-  });
-}
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeout);
 
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-rapidapi-host': RAPID_HOST,
+          'x-rapidapi-key': this.apiKey,
+          ...options.headers,
+        },
+      });
 
-  /**
-   * Get all available domains
-   */
+      // Server responded with error status
+      if (!res.ok) {
+        let body: any;
+        try { body = await res.json(); } catch { body = undefined; }
+
+        throw new TempMailError(
+          `TempMail API Error: ${body?.message ?? res.statusText}`,
+          'API_ERROR',
+          res.status,
+          body
+        );
+      }
+
+      return res.json() as Promise<T>;
+    } catch (e: any) {
+      // Already a TempMailError (e.g. thrown above) — rethrow as-is
+      if (e instanceof TempMailError) throw e;
+
+      // AbortController fired — timeout
+      if (e.name === 'AbortError') {
+        throw new TempMailError(
+          'No response from TempMail API (network/timeout)',
+          'NO_RESPONSE'
+        );
+      }
+
+      // Network failure (DNS, refused, etc.)
+      if (e instanceof TypeError) {
+        throw new TempMailError(
+          'No response from TempMail API (network/timeout)',
+          'NO_RESPONSE'
+        );
+      }
+
+      throw new TempMailError(e.message ?? 'Unexpected error', 'UNKNOWN_ERROR');
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async getDomains(): Promise<DomainsResponse> {
-    try {
-      const res = await this.client.get<DomainsResponse>('/domains');
-      return res.data;
-    } catch (e: any) {
-      throw this.handleError(e);
-    }
+    return this.request<DomainsResponse>('/domains');
   }
 
-  /**
-   * Retrieve mailbox messages
-   * mailbox: user@domain.com
-   */
   async getMailbox(mailbox: string): Promise<MailboxResponse> {
-    try {
-      const { user } = parseMailbox(mailbox);
-      const res = await this.client.get<MailboxResponse>(`/mailbox/${user}`);
-      return res.data;
-    } catch (e: any) {
-      throw this.handleError(e);
-    }
+    const { user } = parseMailbox(mailbox);
+    return this.request<MailboxResponse>(`/mailbox/${user}`);
   }
 
   async getMessage(mailbox: string, messageId: string): Promise<SingleMessageResponse> {
-    try {
-      const { user } = parseMailbox(mailbox);
-      const res = await this.client.get<SingleMessageResponse>(
-        `/mailbox/${user}/message/${messageId}`
-      );
-      return res.data;
-    } catch (e: any) {
-      throw this.handleError(e);
-    }
+    const { user } = parseMailbox(mailbox);
+    return this.request<SingleMessageResponse>(`/mailbox/${user}/message/${messageId}`);
   }
 
   async deleteMessage(mailbox: string, messageId: string): Promise<DeleteResponse> {
-    try {
-      const { user } = parseMailbox(mailbox);
-      const res = await this.client.delete<DeleteResponse>(
-        `/mailbox/${user}/message/${messageId}`
-      );
-      return res.data;
-    } catch (e: any) {
-      throw this.handleError(e);
-    }
+    const { user } = parseMailbox(mailbox);
+    return this.request<DeleteResponse>(`/mailbox/${user}/message/${messageId}`, {
+      method: 'DELETE',
+    });
   }
 
   async getHealth(): Promise<HealthResponse> {
-    try {
-      const res = await this.client.get<HealthResponse>('/health');
-      return res.data;
-    } catch (e: any) {
-      throw this.handleError(e);
-    }
+    return this.request<HealthResponse>('/health');
   }
-
-  private handleError(error: any): TempMailError {
-  // Server responded
-  if (error.response) {
-    const status = error.response.status;
-    const msg =
-      error.response.data?.message ||
-      error.response.statusText ||
-      'API request failed';
-
-    return new TempMailError(
-      `TempMail API Error: ${msg}`,
-      'API_ERROR',
-      status,
-      error.response.data
-    );
-  }
-
-  // No response (network, timeout, DNS, etc.)
-  if (error.request) {
-    return new TempMailError(
-      'No response from TempMail API (network/timeout)',
-      'NO_RESPONSE'
-    );
-  }
-
-  // Something else exploded
-  return new TempMailError(
-    error.message || 'Unexpected error',
-    'UNKNOWN_ERROR'
-  );
-}
-
 }
 
 export default TempMailFCE;
