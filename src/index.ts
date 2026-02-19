@@ -15,25 +15,6 @@ export { decryptMailbox };
 const BASE_URL = 'https://temp-mail-maildrop1.p.rapidapi.com';
 const RAPID_HOST = 'temp-mail-maildrop1.p.rapidapi.com';
 
-function parseMailbox(full: string) {
-  if (!full || typeof full !== 'string') {
-    throw new TempMailError('Mailbox is required', 'INVALID_MAILBOX');
-  }
-
-  const parts = full.split('@');
-
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    throw new TempMailError(
-      'Mailbox must be in format: user@domain.com',
-      'INVALID_MAILBOX'
-    );
-  }
-
-  return {
-    user: parts[0].toLowerCase(),
-    domain: parts[1].toLowerCase(),
-  };
-}
 
 export class TempMailFCE {
   private apiKey: string;
@@ -108,18 +89,15 @@ export class TempMailFCE {
   }
 
   async getMailbox(mailbox: string): Promise<MailboxResponse> {
-    const { user } = parseMailbox(mailbox);
-    return this.request<MailboxResponse>(`/mailbox/${user}`);
+    return this.request<MailboxResponse>(`/mailbox/${mailbox}`);
   }
 
   async getMessage(mailbox: string, messageId: string): Promise<SingleMessageResponse> {
-    const { user } = parseMailbox(mailbox);
-    return this.request<SingleMessageResponse>(`/mailbox/${user}/message/${messageId}`);
+    return this.request<SingleMessageResponse>(`/mailbox/${mailbox}/message/${messageId}`);
   }
 
   async deleteMessage(mailbox: string, messageId: string): Promise<DeleteResponse> {
-    const { user } = parseMailbox(mailbox);
-    return this.request<DeleteResponse>(`/mailbox/${user}/message/${messageId}`, {
+    return this.request<DeleteResponse>(`/mailbox/${mailbox}/message/${messageId}`, {
       method: 'DELETE',
     });
   }
