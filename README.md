@@ -15,7 +15,7 @@ Simply enter the same mailbox name used in the API to view the full content.
 ## Prerequisites
 
 You need a RapidAPI key to use this module.
-**[Buy API Key Here](https://rapidapi.com/dishis-technologies-maildrop/api/temp-mail-maildrop1)**
+**[Free API Key Here](https://rapidapi.com/dishis-technologies-maildrop/api/temp-mail-maildrop1)**
 
 ## Installation
 

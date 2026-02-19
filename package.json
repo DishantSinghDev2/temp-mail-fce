@@ -1,6 +1,6 @@
 {
   "name": "temp-mail-fce",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official wrapper for FreeCustom.Email (Temp Mail) API. Works with React, Next.js, and Node.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,6 +8,14 @@
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },
+  "keywords": [
+    "temp mail",
+    "fce",
+    "disposable email",
+    "freecustom.email",
+    "maildrop",
+    "temp mail api"
+  ],
   "homepage": "https://github.com/DishantSinghDev2/temp-mail-fce#readme",
   "bugs": {
     "url": "https://github.com/DishantSinghDev2/temp-mail-fce/issues"
