@@ -1,5 +1,5 @@
 // index.ts
-import { 
+import {
   MailboxResponse,
   SingleMessageResponse,
   DeleteResponse,
@@ -89,19 +89,21 @@ export class TempMailFCE {
   }
 
   async getMailbox(mailbox: string): Promise<MailboxResponse> {
-    return this.request<MailboxResponse>(`/mailbox/${mailbox}`);
+    const encoded = encodeURIComponent(mailbox);
+    return this.request<MailboxResponse>(`/mailbox/${encoded}`);
   }
 
   async getMessage(mailbox: string, messageId: string): Promise<SingleMessageResponse> {
-    return this.request<SingleMessageResponse>(`/mailbox/${mailbox}/message/${messageId}`);
+    const encoded = encodeURIComponent(mailbox);
+    return this.request<SingleMessageResponse>(`/mailbox/${encoded}/message/${messageId}`);
   }
 
   async deleteMessage(mailbox: string, messageId: string): Promise<DeleteResponse> {
-    return this.request<DeleteResponse>(`/mailbox/${mailbox}/message/${messageId}`, {
+    const encoded = encodeURIComponent(mailbox);
+    return this.request<DeleteResponse>(`/mailbox/${encoded}/message/${messageId}`, {
       method: 'DELETE',
     });
   }
-
   async getHealth(): Promise<HealthResponse> {
     return this.request<HealthResponse>('/health');
   }
