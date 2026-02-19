@@ -1,6 +1,6 @@
 {
   "name": "temp-mail-fce",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Official wrapper for FreeCustom.Email (Temp Mail) API. Works with React, Next.js, and Node.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
